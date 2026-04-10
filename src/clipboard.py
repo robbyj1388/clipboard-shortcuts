@@ -1,4 +1,6 @@
-import keyboard, time
+import keyboard
+import time 
+import os
 
 waiting_for_hotkey = False
 startHotkey = 'alt+a'
@@ -21,8 +23,17 @@ def onHotkey(number):
 
 # GET HISTORY
 try:
-    with open('clipboard-hotkey-history.txt', 'r') as f:
+    # Define the path
+    filepath = os.path.expanduser('~/clipboard-hotkey/clipboard-hotkey-history.txt')
+
+    # Ensure directory exists before opening
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+    # Append to file
+    with open(filepath, 'a+') as f:
+        f.seek(0)  # Move cursor to start to read the existing lines
         clipboard_hotkey_history = [line.rstrip() for line in f]
+    print("History Location:", filepath)
     print("Loaded history:", clipboard_hotkey_history)
 except FileNotFoundError:
     clipboard_hotkey_history = ["item1", "item2", "item3"]
