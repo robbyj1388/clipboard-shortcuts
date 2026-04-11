@@ -63,8 +63,8 @@ def handle_events(event):
                 # Wait for user to release Alt/A so they don't interfere
                 while keyboard.is_pressed('alt') or keyboard.is_pressed('a'):
                     time.sleep(0.01)
-                
-                keyboard.write(clipboard_history[index])
+                keyboard.send('backspace') # remove leading number from input
+                keyboard.write(clipboard_history[index], delay=0.1)
             
             waiting_for_hotkey = False
             processing_event = False # Unlock
