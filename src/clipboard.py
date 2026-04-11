@@ -4,12 +4,10 @@ import os
 import threading
 import platform
 
-# CONFIGURATION
+# CONFIGURATION 
 start_hotkey_str = 'alt+a'
 cancel_hotkey_str = 'esc'
-check_updates_interval = 1
 
-# OS Specific Pathing
 if platform.system() == "Windows":
     filepath = os.path.join(os.environ['USERPROFILE'], 'clipboard-hotkey')
 else:
@@ -17,7 +15,7 @@ else:
 
 fullpath = os.path.join(filepath, "clipboard-hotkey-history.txt")
 
-# STATE
+# STATE 
 waiting_for_hotkey = False
 processing_event = False  
 clipboard_history = []
@@ -25,60 +23,66 @@ clipboard_history = []
 def load_history():
     global clipboard_history
     try:
-        os.makedirs(filepath, exist_ok=True)
         if not os.path.exists(fullpath):
+            os.makedirs(filepath, exist_ok=True)
             with open(fullpath, 'w', encoding='utf-8') as f:
                 f.write("Line 1\nLine 2")
         with open(fullpath, 'r', encoding='utf-8') as f:
             clipboard_history = [line.strip() for line in f if line.strip()]
-    except Exception as e:
-        print(f"Error: {e}")
-
-def update_loop():
-    while True:
-        load_history()
-        time.sleep(check_updates_interval)
+    except Exception: pass
 
 def handle_events(event):
     global waiting_for_hotkey, processing_event
 
-    if processing_event:
+    if processing_event or event.event_type == 'up':
         return
 
+    # Detect Start Hotkey
     if keyboard.is_pressed(start_hotkey_str):
         waiting_for_hotkey = True
         return
 
-    if event.name == cancel_hotkey_str:
-        waiting_for_hotkey = False
+    # Detect Selection
+    if waiting_for_hotkey and event.name in '123456789':
+        index = int(event.name) - 1
+        waiting_for_hotkey = False # Turn off state immediately
+        
+        if index < len(clipboard_history):
+            processing_event = True
+            
+            while keyboard.is_pressed('alt') or keyboard.is_pressed('a') or keyboard.is_pressed(event.name):
+                time.sleep(0.01)
+            
+            # Remove the number '1' that was just typed
+            keyboard.send('backspace') 
+            
+            # Type the text at hardware speed
+            text_to_type = clipboard_history[index]
+            keyboard.write(text_to_type, delay=0) 
+            
+            processing_event = False
         return
 
-    if event.event_type == 'down' and event.name in '123456789':
-        index = int(event.name) - 1
-        
-        if waiting_for_hotkey:
-            processing_event = True # Lock
-            
-            if index < len(clipboard_history):
-                # Wait for user to release Alt/A so they don't interfere
-                while keyboard.is_pressed('alt') or keyboard.is_pressed('a'):
-                    time.sleep(0.01)
-                keyboard.send('backspace') # remove leading number from input
-                keyboard.write(clipboard_history[index], delay=0.1)
-            
-            waiting_for_hotkey = False
-            processing_event = False # Unlock
-        else:
-            # If not in selection mode, let the number through
-            # We don't suppress the key globally, so it types normally
-            pass
+    # 3. Detect Cancel
+    if event.name == cancel_hotkey_str:
+        waiting_for_hotkey = False
 
 # STARTUP 
 load_history()
-threading.Thread(target=update_loop, daemon=True).start()
+# Watcher thread for file changes
+def watch_file():
+    last_mtime = 0
+    while True:
+        try:
+            mtime = os.path.getmtime(fullpath)
+            if mtime != last_mtime:
+                load_history()
+                last_mtime = mtime
+        except: pass
+        time.sleep(1)
 
-keyboard.on_press(handle_events)
+threading.Thread(target=watch_file, daemon=True).start()
 
-print(f"Running on {platform.system()}. Press {start_hotkey_str} then 1-9.")
-print(f"History File at: {fullpath}.")
+keyboard.hook(handle_events)
+print(f"Ready. Press {start_hotkey_str} then 1-9.")
 keyboard.wait()
