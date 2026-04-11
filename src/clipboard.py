@@ -3,6 +3,7 @@ import keyboard
 import os
 import threading
 import sys
+import pyperclip
 
 waiting_for_hotkey = False
 startHotkey = 'alt+a'
@@ -65,9 +66,22 @@ def onHotkey(index):
     if waiting_for_hotkey and index < len(clipboard_hotkey_history):
         time.sleep(0.1)
         keyboard.send('backspace')
+
         text_to_paste = clipboard_hotkey_history[index]
-        keyboard.write(text_to_paste, delay=0.01)
+        pyperclip.copy(text_to_paste)
+        keyboard.send('ctrl+v')
+
         setSelectHotkey(False)
+
+# def onHotkey(index):
+#     global waiting_for_hotkey
+# 
+#     if waiting_for_hotkey and index < len(clipboard_hotkey_history):
+#         time.sleep(0.1)
+#         keyboard.send('backspace')
+#         text_to_paste = clipboard_hotkey_history[index]
+#         keyboard.write(text_to_paste, delay=0.01)
+#         setSelectHotkey(False)
 
 # Start background thread
 hotkey_thread = threading.Thread(
